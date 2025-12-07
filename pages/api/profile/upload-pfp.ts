@@ -5,23 +5,44 @@ import prisma from "../../../lib/prisma";
 import jwt from "jsonwebtoken";
 
 export const config = {
-  api: { bodyParser: false },
+  api: {
+    bodyParser: false, // required for formidable
+  },
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const token = req.cookies?.token;
-  if (!token) return res.status(401).json({ message: "Not authenticated" });
-  const payload: any = jwt.verify(token, process.env.JWT_SECRET || "devsecret");
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-  const form = formidable({ multiples: false, uploadDir: "./public/uploads", keepExtensions: true });
+  const form = new formidable.IncomingForm({
+    keepExtensions: true,
+  });
+
   form.parse(req, async (err, fields, files) => {
-    if (err) return res.status(500).json({ message: "Upload error" });
-    const file: any = files.pfp;
-    if (!file) return res.status(400).json({ message: "No file" });
-    const relative = `/uploads/${file.newFilename}`;
-    // Update user
-    await prisma.user.update({ where: { id: payload.sub }, data: { pfpUrl: relative } });
+    if (err) {
+      return res.status(500).json({ error: "Upload failed" });
+    }
 
-    res.json({ ok: true, url: relative });
+    try {
+      const token = fields.token as string;
+      const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+
+      const file = files.file as formidable.File;
+      const buffer = fs.readFileSync(file.filepath);
+
+      // Example: upload to a folder or cloud
+      const filename = `uploads/${decoded.id}-${Date.now()}.jpg`;
+      fs.writeFileSync(filename, buffer);
+
+      const updated = await prisma.user.update({
+        where: { id: decoded.id },
+        data: { pfpUrl: filename },
+      });
+
+      return res.status(200).json({ success: true, user: updated });
+    } catch (e) {
+      return res.status(500).json({ error: "Server error" });
+    }
   });
 }
