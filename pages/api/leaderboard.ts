@@ -1,13 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Store } from "../../lib/store";
+import prisma from "../../lib/prisma";
 
-/*
-Return top users by balance, card count, xp (demo).
-*/
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const users = Store.listUsers();
-  const money = [...users].sort((a,b)=> b.balance - a.balance).slice(0,10).map(u => ({ id: u.id, username: u.username, balance: u.balance }));
-  const xp = [...users].sort((a,b)=> b.xp - a.xp).slice(0,10).map(u => ({ id: u.id, username: u.username, xp: u.xp }));
-  const cards = [...users].sort((a,b)=> b.cards.length - a.cards.length).slice(0,10).map(u => ({ id: u.id, username: u.username, cardCount: u.cards.length }));
-  res.json({ money, xp, cards });
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // top 10 by balance
+  const money = await prisma.user.findMany({ orderBy: { balance: "desc" }, take: 10, select: { id: true, username: true, balance: true } });
+  const xp = await prisma.user.findMany({ orderBy: { xp: "desc" }, take: 10, select: { id: true, username: true, xp: true } });
+  const cards = await prisma.user.findMany({
+    orderBy: { cards: { _count: "desc" } },
+    take: 10,
+    select: { id: true, username: true, cards: true, _count: { select: { cards: true } } },
+  });
+  const cardsMapped = cards.map(u => ({ id: u.id, username: u.username, cardCount: (u as any)._count.cards }));
+  res.json({ money, xp, cards: cardsMapped });
 }
