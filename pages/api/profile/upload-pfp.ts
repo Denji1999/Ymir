@@ -1,48 +1,46 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import formidable from "formidable";
-import fs from "fs";
+import { put } from "@vercel/blob";
 import prisma from "../../../lib/prisma";
 import jwt from "jsonwebtoken";
 
-export const config = {
-  api: {
-    bodyParser: false, // required for formidable
-  },
-};
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+  try {
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+
+    const token = req.headers.authorization?.replace("Bearer ", "");
+
+    if (!token) return res.status(401).json({ error: "Missing token" });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret") as { id: string };
+    const userId = decoded.id;
+
+    const { fileName, fileBase64 } = req.body;
+
+    if (!fileName || !fileBase64) {
+      return res.status(400).json({ error: "Missing file data" });
+    }
+
+    // Convert base64 → buffer
+    const buffer = Buffer.from(fileBase64, "base64");
+
+    // Upload to Vercel Blob
+    const blob = await put(`pfp/${userId}-${fileName}`, buffer, {
+      access: "public",
+    });
+
+    // Save URL to database
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        pfpUrl: blob.url,
+      },
+    });
+
+    return res.status(200).json({ success: true, url: blob.url });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Upload failed" });
   }
-
-  const form = new formidable.IncomingForm({
-    keepExtensions: true,
-  });
-
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      return res.status(500).json({ error: "Upload failed" });
-    }
-
-    try {
-      const token = fields.token as string;
-      const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-
-      const file = files.file as formidable.File;
-      const buffer = fs.readFileSync(file.filepath);
-
-      // Example: upload to a folder or cloud
-      const filename = `uploads/${decoded.id}-${Date.now()}.jpg`;
-      fs.writeFileSync(filename, buffer);
-
-      const updated = await prisma.user.update({
-        where: { id: decoded.id },
-        data: { pfpUrl: filename },
-      });
-
-      return res.status(200).json({ success: true, user: updated });
-    } catch (e) {
-      return res.status(500).json({ error: "Server error" });
-    }
-  });
 }
