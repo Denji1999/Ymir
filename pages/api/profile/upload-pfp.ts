@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import formidable, { File } from "formidable";
+import formidable from "formidable";
 import fs from "fs";
 import path from "path";
 import prisma from "../../../lib/prisma";
@@ -66,10 +66,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<Data>) => {
         data: { pfpUrl: `/uploads/${uploadedFile.originalFilename || uploadedFile.newFilename}` },
       });
 
+      // Use the correct field name here
       return res.status(200).json({
         success: true,
         message: "Profile picture uploaded successfully",
-        url: updatedUser.profilePicture,
+        url: updatedUser.pfpUrl,
       });
     } catch (e) {
       console.error(e);
