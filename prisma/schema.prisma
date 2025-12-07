@@ -1,0 +1,42 @@
+// Prisma schema - use PostgreSQL-compatible DATABASE_URL
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("postgresql://neondb_owner:npg_ExoXbIuk8Oc3@ep-red-base-ah4xm3lb-pooler.c-3.us-east-1.aws.neon.tech/Ymir?sslmode=require&channel_binding=require")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  phone        String   @unique
+  username     String
+  pfpUrl       String?
+  balance      Int      @default(0) // gold coins
+  xp           Int      @default(0)
+  level        Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  cards        Card[] 
+}
+
+model Card {
+  id        String   @id @default(uuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id])
+  name      String
+  rarity    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // "buy" | "sell" | "award"
+  amount    Int
+  details   String?
+  createdAt DateTime @default(now())
+}
