@@ -18,7 +18,7 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "swr": "^2.2.0",
-    "formidable": "^3.7.1"
+    "formidable": "^3.5.4"
   },
   "devDependencies": {
     "prisma": "^5.0.0",
@@ -28,6 +28,6 @@
     "typescript": "^5.0.0",
     "@types/react": "^18.3.0",
     "@types/node": "^20.11.0",
-    "@types/formidable": "^3.0.6"
+    "@types/formidable": "^3.4.5"
   }
 }
