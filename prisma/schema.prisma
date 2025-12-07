@@ -9,16 +9,19 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  phone        String   @unique
+  id           String         @id @default(uuid())
+  phone        String         @unique
   username     String
   pfpUrl       String?
-  balance      Int      @default(0) // gold coins
-  xp           Int      @default(0)
-  level        Int      @default(1)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  cards        Card[] 
+  balance      Int            @default(0) 
+  xp           Int            @default(0)
+  level        Int            @default(1)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  cards        Card[]         
+  transactions Transaction[]  
 }
 
 model Card {
