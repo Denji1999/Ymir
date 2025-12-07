@@ -1,17 +1,16 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getTokenFromReq, verifyToken } from "../../../lib/auth";
-import { Store } from "../../../lib/store";
+import jwt from "jsonwebtoken";
+import prisma from "../../../lib/prisma";
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const token = getTokenFromReq(req);
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const token = req.cookies?.token;
   if (!token) return res.status(401).json({ message: "Not authenticated" });
-  const payload: any = verifyToken(token);
-  if (!payload) return res.status(401).json({ message: "Invalid token" });
-
-  // Find user by id in in-memory store (search by id)
-  const all = Store.listUsers();
-  const user = all.find(u => u.id === payload.sub);
-  if (!user) return res.status(404).json({ message: "User not found" });
-
-  res.json({ user });
+  try {
+    const payload: any = jwt.verify(token, process.env.JWT_SECRET || "devsecret");
+    const user = await prisma.user.findUnique({ where: { id: payload.sub }, include: { cards: true } });
+    if (!user) return res.status(404).json({ message: "Not found" });
+    res.json({ user });
+  } catch (err) {
+    res.status(401).json({ message: "Invalid token" });
+  }
 }
