@@ -63,7 +63,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<Data>) => {
       // Save file URL to database
       const updatedUser = await prisma.user.update({
         where: { id: userId },
-        data: { profilePicture: `/uploads/${uploadedFile.originalFilename || uploadedFile.newFilename}` },
+        data: { pfpUrl: `/uploads/${uploadedFile.originalFilename || uploadedFile.newFilename}` },
       });
 
       return res.status(200).json({
