@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 
 export const config = {
   api: {
-    bodyParser: false, // Disables Next.js default body parsing
+    bodyParser: false, // Disable Next.js default body parsing for file uploads
   },
 };
 
@@ -22,7 +22,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<Data>) => {
     return res.status(405).json({ success: false, message: "Method not allowed" });
   }
 
-  // Parse the token from headers (example)
+  // Parse JWT token from headers
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -36,6 +36,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<Data>) => {
     return res.status(401).json({ success: false, message: "Invalid token" });
   }
 
+  // Initialize Formidable
   const form = formidable({ multiples: false, keepExtensions: true });
 
   form.parse(req, async (err, fields, files) => {
@@ -43,23 +44,26 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<Data>) => {
       return res.status(500).json({ success: false, message: "Error parsing form data" });
     }
 
-    const file = files.file as File;
-    if (!file) {
+    // Type-safe handling of Formidable file(s)
+    const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
+
+    if (!uploadedFile) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
 
     try {
-      // Move file to public/uploads
+      // Create uploads folder if it doesn't exist
       const uploadDir = path.join(process.cwd(), "/public/uploads");
       if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-      const newFilePath = path.join(uploadDir, file.originalFilename || file.newFilename);
-      fs.renameSync(file.filepath, newFilePath);
+      // Move uploaded file to /public/uploads
+      const newFilePath = path.join(uploadDir, uploadedFile.originalFilename || uploadedFile.newFilename);
+      fs.renameSync(uploadedFile.filepath, newFilePath);
 
-      // Save file info to database
+      // Save file URL to database
       const updatedUser = await prisma.user.update({
         where: { id: userId },
-        data: { profilePicture: `/uploads/${file.originalFilename || file.newFilename}` },
+        data: { profilePicture: `/uploads/${uploadedFile.originalFilename || uploadedFile.newFilename}` },
       });
 
       return res.status(200).json({
